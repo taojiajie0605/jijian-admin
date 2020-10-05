@@ -1,0 +1,77 @@
+kind: pipeline
+type: docker
+name: default
+
+platform:
+    os: linux
+    arch: amd64
+
+steps:
+    - name: build
+      image: node:alpine
+      commands:
+          - npm i
+          - mv dist admin
+
+    - name: deploy-jijian
+      image: appleboy/drone-scp
+      settings:
+          host: lichnow.com
+          username: root
+          port: 22
+          key:
+              from_secret: ssh_key
+          target: /data/wwwroot/jijian
+          source: ./admin
+          rm: true
+      depends_on:
+          - build
+
+    - name: deploy-zgf
+      image: appleboy/drone-scp
+      settings:
+          host: lichnow.com
+          username: root
+          port: 22
+          key:
+              from_secret: ssh_key
+          target: /data/wwwroot/zgf
+          source: ./admin
+          rm: true
+      depends_on:
+          - build
+
+    - name: deploy-zgz
+      image: appleboy/drone-scp
+      settings:
+          host: lichnow.com
+          username: root
+          port: 22
+          key:
+              from_secret: ssh_key
+          target: /data/wwwroot/zgz
+          source: ./admin
+          rm: true
+      depends_on:
+          - build
+
+    - name: publish
+      image: appleboy/drone-ssh
+      settings:
+          host: lichnow.com
+          username: root
+          port: 22
+          key:
+              from_secret: ssh_key
+          script:
+              - chown -R www.www /data/wwwroot/
+              - find /data/wwwroot/ -type d -exec chmod 755 {} \;
+              - find /data/wwwroot/ -type f -exec chmod 644 {} \;
+      depends_on:
+          - deploy-jijian
+          - deploy-zgf
+          - deploy-zgz
+
+trigger:
+    branch:
+        - master
